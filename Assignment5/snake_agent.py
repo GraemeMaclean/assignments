@@ -59,12 +59,34 @@ class SnakeAgent:
     #   This can return a list of variables that help you keep track of
     #   conditions mentioned above.
     def helper_func(self, state):
-        print("IN helper_func")
         # YOUR CODE HERE
-        # YOUR CODE HERE
-        # YOUR CODE HERE
-        # YOUR CODE HERE
-        # YOUR CODE HERE
+        head_x, head_y, body, food_x, food_y = state
+        
+        # 1 & 2: Adjoining Walls (Grid-based boundaries)
+        wall_x = 0
+        if head_x <= helper.GRID_SIZE: wall_x = 1
+        elif head_x >= helper.DISPLAY_SIZE - 2 * helper.GRID_SIZE: wall_x = 2
+            
+        wall_y = 0
+        if head_y <= helper.GRID_SIZE: wall_y = 1
+        elif head_y >= helper.DISPLAY_SIZE - 2 * helper.GRID_SIZE: wall_y = 2
+
+        # 3 & 4: Food Direction
+        food_dir_x = 0
+        if food_x < head_x: food_dir_x = 1
+        elif food_x > head_x: food_dir_x = 2
+        
+        food_dir_y = 0
+        if food_y < head_y: food_dir_y = 1
+        elif food_y > head_y: food_dir_y = 2
+
+        # 5-8: Body Proximity
+        body_top    = 1 if (head_x, head_y - helper.GRID_SIZE) in body else 0
+        body_bottom = 1 if (head_x, head_y + helper.GRID_SIZE) in body else 0
+        body_left   = 1 if (head_x - helper.GRID_SIZE, head_y) in body else 0
+        body_right  = 1 if (head_x + helper.GRID_SIZE, head_y) in body else 0
+
+        return (wall_x, wall_y, food_dir_x, food_dir_y, body_top, body_bottom, body_left, body_right)
 
 
     # Computing the reward, need not be changed.
@@ -97,14 +119,60 @@ class SnakeAgent:
     #   The parameters defined should be enough. If you want to describe more elaborate
     #   states as mentioned in helper_func, use the state variable to contain all that.
     def agent_action(self, state, points, dead):
-        print("IN AGENT_ACTION")
         # YOUR CODE HERE
-        # YOUR CODE HERE
-        # YOUR CODE HERE
-        # YOUR CODE HERE
-        # YOUR CODE HERE
-        # YOUR CODE HERE
-        # YOUR CODE HERE
+        curr_s = self.helper_func(state)
+        
+        # Q-Table Update (Training Mode)
+        if self._train and self.s is not None:
+            # Calculate reward based on current vs previous points
+            reward = self.compute_reward(points, dead)
+            
+            # The Bellman Equation: Q(s,a) = Q(s,a) + lr * (R + gamma * max(Q(s',a')) - Q(s,a))
+            prev_sa = self.s + (self.a,)
+            lr = self.LPC / (self.LPC + self.N[prev_sa])
+            
+            # If dead, there is no "next state" future reward (it must be 0)
+            max_q_next = 0 if dead else np.max(self.Q[curr_s])
+            
+            self.Q[prev_sa] += lr * (reward + self.gamma * max_q_next - self.Q[prev_sa])
+
+        # Update the agent's internal point tracker
+        self.points = points
+
+        if dead:
+            self.reset()
+            return None
+
+        # Action Selection
+        best_action = 3 # Default to Right
+        
+        if self._train:
+            best_f = -float('inf')
+            # Priority tie-breaking (Right, Left, Down, Up)
+            for action in [3, 2, 1, 0]:
+                q_val = self.Q[curr_s + (action,)]
+                n_val = self.N[curr_s + (action,)]
+                
+                # Exploration function f(q, n)
+                f_val = 1 if n_val < self.Ne else q_val
+                
+                if f_val >= best_f:
+                    best_f = f_val
+                    best_action = action
+            
+            # Store state/action for the update in the next time-step
+            self.s = curr_s
+            self.a = best_action
+            self.N[curr_s + (best_action,)] += 1
+        else:
+            # Pure exploitation for Testing
+            best_q = -float('inf')
+            for action in [3, 2, 1, 0]:
+                if self.Q[curr_s + (action,)] >= best_q:
+                    best_q = self.Q[curr_s + (action,)]
+                    best_action = action
+                    
+        return best_action
 
         #UNCOMMENT THIS TO RETURN THE REQUIRED ACTION.
         #return action

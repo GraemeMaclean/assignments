@@ -105,5 +105,6 @@ The last function in this file is the `main` . Here we just parse the arguments 
 In this assignment you are to implement an AI that can play the snake game using q-learning. You are to submit four files as mentioned above. There are only four places where you need to make any changes for this assignment which are
 
 - `helper_func`: writing helper code for agent_action function
-- `agent_action`: writing the learning and inference for the q-table - `do_training`: calling the agent_action function appropriately
+- `agent_action`: writing the learning and inference for the q-table
+- `do_training`: calling the agent_action function appropriately
 - `do_testing`: calling the agent_action function appropriately.
