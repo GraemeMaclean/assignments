@@ -64,12 +64,12 @@ class SnakeAgent:
         
         # 1 & 2: Adjoining Walls (Grid-based boundaries)
         wall_x = 0
-        if head_x <= helper.GRID_SIZE: wall_x = 1
-        elif head_x >= helper.DISPLAY_SIZE - 2 * helper.GRID_SIZE: wall_x = 2
+        if head_x <= helper.BOARD_LIMIT_MIN: wall_x = 1
+        elif head_x >= helper.BOARD_LIMIT_MAX: wall_x = 2
             
         wall_y = 0
-        if head_y <= helper.GRID_SIZE: wall_y = 1
-        elif head_y >= helper.DISPLAY_SIZE - 2 * helper.GRID_SIZE: wall_y = 2
+        if head_y <= helper.BOARD_LIMIT_MIN: wall_y = 1
+        elif head_y >= helper.BOARD_LIMIT_MAX: wall_y = 2
 
         # 3 & 4: Food Direction
         food_dir_x = 0
@@ -120,24 +120,33 @@ class SnakeAgent:
     #   states as mentioned in helper_func, use the state variable to contain all that.
     def agent_action(self, state, points, dead):
         # YOUR CODE HERE
+        head_x, head_y, _, food_x, food_y = state
+        curr_dist = abs(head_x - food_x) + abs(head_y - food_y)
+        
         curr_s = self.helper_func(state)
         
-        # Q-Table Update (Training Mode)
         if self._train and self.s is not None:
-            # Calculate reward based on current vs previous points
-            reward = self.compute_reward(points, dead)
+            # Reward Logic
+            base_reward = self.compute_reward(points, dead)
             
-            # The Bellman Equation: Q(s,a) = Q(s,a) + lr * (R + gamma * max(Q(s',a')) - Q(s,a))
+            # Reward Shaping: did we get closer to food?
+            if not dead:
+                if curr_dist < self.prev_dist:
+                    shaping = 0.1  # Moving closer
+                else:
+                    shaping = -0.2 # Moving away or staying same distance
+                reward = base_reward + shaping
+            else:
+                reward = -10 # Increased death penalty to discourage risky moves
+            
+            # Bellman Update
             prev_sa = self.s + (self.a,)
             lr = self.LPC / (self.LPC + self.N[prev_sa])
-            
-            # If dead, there is no "next state" future reward (it must be 0)
             max_q_next = 0 if dead else np.max(self.Q[curr_s])
-            
             self.Q[prev_sa] += lr * (reward + self.gamma * max_q_next - self.Q[prev_sa])
 
-        # Update the agent's internal point tracker
         self.points = points
+        self.prev_dist = curr_dist # Track distance for the next step
 
         if dead:
             self.reset()
@@ -173,6 +182,3 @@ class SnakeAgent:
                     best_action = action
                     
         return best_action
-
-        #UNCOMMENT THIS TO RETURN THE REQUIRED ACTION.
-        #return action
